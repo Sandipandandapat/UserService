@@ -2,6 +2,8 @@ server:
   port: 8081
 
 spring:
+  application:
+    name: USER-SERVICE
   datasource:
     url: jdbc:mysql://localhost:3306/microservices
     username: root
@@ -12,14 +14,66 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
-  application:
-    name: USER-SERVICE
 
-eureka:
-  instance:
-    prefer-ip-address: true
-  client:
-    fetch-registry: true
-    register-with-eureka: true
-    service-url:
-      default-zone: http://localhost:8761/eureca
+
+  config:
+    import: configserver:http://localhost:8085  #we can give optional before configserver also
+
+#  profiles:
+#    active: prod              #if we want to use any other profile other than default we can give prod,dev
+
+#after doing the above config it will take the application name as it is mentioned in config server
+
+#as we are using config-server ,so there is no need to configure eureka properties seperately
+
+#eureka:
+#  instance:
+#    prefer-ip-address: true
+#  client:
+#    fetch-registry: true
+#    register-with-eureka: trueyk
+#    service-url:
+#      default-zone: http://localhost:8761/eureca
+
+
+#resilience4j configuration
+
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health    #we only need heath here , or else we con also give *
+  endpoint:
+    health:
+      show-details: always
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      ratingHotelBreaker:
+        registerHealthIndicator: true
+        eventConsumerBufferSize: 10
+        failureRateThreshold: 50
+        minimumNumberOfCalls: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 6s
+        permittedNumberOfCallsInHalfOpenState:  3
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
+  retry:
+    instances:
+      ratingHotelService:
+        maxAttempts: 3    #by default max attempt is 3, we should not give more than 3 times as service will get stuck for long
+        waitDuration: 5s   # we should also give this time small maybe 2s
+
+  ratelimiter:
+    instances:
+      userRateLimiter:
+        limitRefreshPeriod: 4s #it is by default 500ns
+        limitForPeriod: 3     #by default, it is 50
+        timeoutDuration: 2s     #by default 5s
+
